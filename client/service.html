@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Service | ServiceHub</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="index.html" title="ServiceHub">📱</a>
+      <nav class="nav">
+        <a href="services.html" title="Services">🔍</a>
+        <a href="create-service.html" data-auth-only hidden title="Create">➕</a>
+        <a href="dashboard.html" data-auth-only hidden title="Dashboard">📊</a>
+        <a href="profile.html" data-auth-only hidden title="Profile">👤</a>
+      </nav>
+      <div style="flex: 1;"></div>
+      <a href="login.html" data-guest-only hidden title="Login">🔐</a>
+      <a href="register.html" data-guest-only hidden title="Register">✏️</a>
+      <button type="button" data-auth-only data-logout hidden title="Logout">🚪</button>
+    </aside>
+
+    <main class="page">
+      <section class="detail-layout">
+        <article class="service-detail" id="serviceDetail"></article>
+        <aside class="message-panel" id="messagePanel"></aside>
+      </section>
+      <p class="notice" id="serviceMessage"></p>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ServiceHub</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="index.html" title="ServiceHub">📱</a>
+      <nav class="nav">
+        <a href="services.html" title="Services">🔍</a>
+        <a href="create-service.html" data-auth-only hidden title="Create">➕</a>
+        <a href="dashboard.html" data-auth-only hidden title="Dashboard">📊</a>
+        <a href="profile.html" data-auth-only hidden title="Profile">👤</a>
+      </nav>
+      <div style="flex: 1;"></div>
+      <a href="login.html" data-guest-only hidden title="Login">🔐</a>
+      <a href="register.html" data-guest-only hidden title="Register">✏️</a>
+      <button type="button" data-auth-only data-logout hidden title="Logout">🚪</button>
+    </aside>
+
+    <main class="page hero">
+      <section>
+        <h1>ServiceHub</h1>
+        <p>
+          Discover local services, publish trusted listings, and connect with
+          providers in a polished marketplace experience.
+        </p>
+        <div class="actions">
+          <a class="button" href="services.html">Browse Services</a>
+          <a class="button secondary" id="heroSecondaryButton" href="create-service.html">Create Listing</a>
+        </div>
+      </section>
+
+      <section class="hero-panel">
+        <h2>Built for local service discovery</h2>
+        <p class="lead">
+          Browse trusted service providers, manage your listings, and keep every
+          interaction secure and easy to follow.
+        </p>
+        <div class="stats">
+          <div class="stat"><strong>Listings</strong><span>Publish, update, and showcase your services</span></div>
+          <div class="stat"><strong>Workflow</strong><span>Fast validated listings and owner controls</span></div>
+          <div class="stat"><strong>Connections</strong><span>Message providers directly in the app</span></div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

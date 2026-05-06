@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register | ServiceHub</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="index.html" title="ServiceHub">📱</a>
+      <nav class="nav">
+        <a href="services.html" title="Services">🔍</a>
+        <a href="create-service.html" data-auth-only hidden title="Create">➕</a>
+        <a href="dashboard.html" data-auth-only hidden title="Dashboard">📊</a>
+        <a href="profile.html" data-auth-only hidden title="Profile">👤</a>
+      </nav>
+      <div style="flex: 1;"></div>
+      <a href="login.html" data-guest-only hidden title="Login">🔐</a>
+      <a href="register.html" data-guest-only hidden title="Register">✏️</a>
+      <button type="button" data-auth-only data-logout hidden title="Logout">🚪</button>
+    </aside>
+
+    <main class="page">
+      <h1 class="page-title">Create Account</h1>
+      <form class="form-shell form-grid" id="registerForm">
+        <label>
+          Name
+          <input id="name" name="name" type="text" autocomplete="name" required />
+        </label>
+        <label>
+          Email
+          <input id="email" name="email" type="email" autocomplete="email" required />
+        </label>
+        <label>
+          Password
+          <input id="password" name="password" type="password" autocomplete="new-password" required />
+        </label>
+        <button class="button" type="submit">Register</button>
+        <p class="notice" id="formMessage"></p>
+      </form>
+    </main>
+  </body>
+</html>

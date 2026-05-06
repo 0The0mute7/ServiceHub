@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create Service | ServiceHub</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="index.html" title="ServiceHub">📱</a>
+      <nav class="nav">
+        <a href="services.html" title="Services">🔍</a>
+        <a href="create-service.html" data-auth-only hidden title="Create">➕</a>
+        <a href="dashboard.html" data-auth-only hidden title="Dashboard">📊</a>
+        <a href="profile.html" data-auth-only hidden title="Profile">👤</a>
+      </nav>
+      <div style="flex: 1;"></div>
+      <a href="login.html" data-guest-only hidden title="Login">🔐</a>
+      <a href="register.html" data-guest-only hidden title="Register">✏️</a>
+      <button type="button" data-auth-only data-logout hidden title="Logout">🚪</button>
+    </aside>
+
+    <main class="page">
+      <h1 class="page-title" id="serviceFormTitle">Create Service</h1>
+      <form class="form-shell form-grid" id="serviceForm">
+        <label>
+          Title
+          <input id="title" name="title" type="text" required />
+        </label>
+        <label>
+          Description
+          <textarea id="description" name="description" required></textarea>
+        </label>
+        <label>
+          Price
+          <input id="price" name="price" type="number" min="1" step="0.01" required />
+        </label>
+        <label>
+          Category
+          <input id="category" name="category" type="text" required />
+        </label>
+        <label>
+          Location
+          <input id="location" name="location" type="text" required />
+        </label>
+        <label>
+          Contact
+          <textarea id="contact" name="contact" required></textarea>
+        </label>
+        <button class="button" id="serviceSubmitButton" type="submit">Create Service</button>
+        <p class="notice" id="formMessage"></p>
+      </form>
+    </main>
+  </body>
+</html>
