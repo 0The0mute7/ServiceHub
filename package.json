@@ -18,5 +18,8 @@
   "bugs": {
     "url": "https://github.com/0The0mute7/ServiceHub/issues"
   },
-  "homepage": "https://github.com/0The0mute7/ServiceHub#readme"
+  "homepage": "https://github.com/0The0mute7/ServiceHub#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
 }
