@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="40" fill="#f7f8fb"/>
+  <rect x="24" y="24" width="144" height="144" rx="34" fill="#ffffff" stroke="#17202a" stroke-width="10"/>
+  <text x="96" y="120" text-anchor="middle" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="86" fill="#146c5f">📱</text>
+  <path d="M64 150 L96 118 L128 150" fill="#146c5f" stroke="#17202a" stroke-width="6" stroke-linejoin="round"/>
+</svg>

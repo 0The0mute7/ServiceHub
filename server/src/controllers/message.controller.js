@@ -181,6 +181,7 @@ const getMessages = async (req, res) => {
   }
 };
 
+const { sendWebPushToUser } = require("../services/notify");
 const createMessage = async (req, res) => {
   try {
     const conversationId = Number(req.params.conversationId);
@@ -189,6 +190,8 @@ const createMessage = async (req, res) => {
     if (!conversation) {
       return sendError(res, 404, "Conversation not found");
     }
+
+    const otherUserId = conversation.buyerId === req.user.id ? conversation.providerId : conversation.buyerId;
 
     const message = await prisma.message.create({
       data: {
@@ -211,6 +214,15 @@ const createMessage = async (req, res) => {
       where: { id: conversationId },
       data: { updatedAt: new Date() },
     });
+
+    // Push notification (best-effort)
+    if (otherUserId) {
+      await sendWebPushToUser(otherUserId, {
+        title: "New message",
+        body: message.content,
+        data: { conversationId },
+      });
+    }
 
     return sendSuccess(res, 201, "Message sent successfully", message);
   } catch (err) {

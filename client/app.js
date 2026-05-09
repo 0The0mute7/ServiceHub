@@ -1,6 +1,149 @@
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://servicehub-qkrk.onrender.com/api";
+
+// IMPORTANT: set this to your real base64 VAPID public key (URL-safe)
+const VAPID_PUBLIC_KEY = "BEgkNeMmBOoqGPyA933kZSFYXtnt0IAsIZ5xFUsSZdtmkTTZWhDhbczT5ph_3fqrmhyk15vEY6N_97XopAbJqxw";
+
+const urlBase64ToUint8Array = (base64String) => {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+};
+
+const subscribeToPush = async () => {
+  if (!("serviceWorker" in navigator)) return;
+  if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.includes("REPLACE")) return;
+  if (!getToken()) return;
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return;
+
+    const reg = await navigator.serviceWorker.ready;
+
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) return;
+
+    const subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+
+    await apiRequest("/push/subscribe", {
+      method: "POST",
+      body: JSON.stringify({
+        endpoint: subscription.endpoint,
+        p256dh: subscription.getKey("p256dh") ? subscription.getKey("p256dh").toString("base64") : "",
+        auth: subscription.getKey("auth") ? subscription.getKey("auth").toString("base64") : "",
+      }),
+    });
+  } catch {
+    // ignore
+  }
+};
+
+const registerServiceWorker = async () => {
+  if (!("serviceWorker" in navigator)) return;
+
+  try {
+    // sw.js is served from the site root (Vercel static)
+    // We use absolute path to avoid scope issues across pages.
+    await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+  } catch {
+    // Ignore registration failures
+  }
+};
+
+const applyAppShellUX = () => {
+  // Helps the app feel more native once installed.
+  // (Standalone mode is controlled by manifest display + iOS/Android behaviors.)
+  try {
+    document.documentElement.style.height = "100%";
+    document.body.style.minHeight = "100vh";
+  } catch {
+    // no-op
+  }
+
+  let el = document.getElementById("pwaLoadingOverlay");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "pwaLoadingOverlay";
+    el.style.position = "fixed";
+    el.style.inset = "0";
+    el.style.background = "rgba(247, 248, 251, 0.92)";
+    el.style.zIndex = "9999";
+    el.style.display = "none";
+    el.style.alignItems = "center";
+    el.style.justifyContent = "center";
+    el.style.font = "700 18px/1 Arial, Helvetica, sans-serif";
+    el.style.color = "#17202a";
+    el.textContent = "Loading…";
+    document.body.appendChild(el);
+  }
+
+  el.style.display = "flex";
+  window.addEventListener(
+    "load",
+    () => {
+      el.style.display = "none";
+    },
+    { once: true }
+  );
+};
 
 const getToken = () => localStorage.getItem("servicehubToken");
+
+const MESSAGE_QUEUE_KEY = "servicehubMessageQueueV1";
+
+const loadMessageQueue = () => {
+  try {
+    return JSON.parse(localStorage.getItem(MESSAGE_QUEUE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+
+const saveMessageQueue = (queue) => {
+  localStorage.setItem(MESSAGE_QUEUE_KEY, JSON.stringify(queue));
+};
+
+const enqueueQueuedMessage = (payload) => {
+  const queue = loadMessageQueue();
+  queue.push(payload);
+  saveMessageQueue(queue);
+};
+
+const dequeueQueuedMessage = (queuedId) => {
+  const queue = loadMessageQueue();
+  const next = queue.filter((m) => m.queuedId !== queuedId);
+  saveMessageQueue(next);
+};
+
+const flushQueuedMessages = async (conversationId, onStatus) => {
+  if (!navigator.onLine) return;
+
+  const queue = loadMessageQueue();
+  const target = queue.filter((m) => m.conversationId === conversationId);
+
+  for (const msg of target) {
+    try {
+      if (onStatus) onStatus(msg.queuedId, "sending");
+      await apiRequest(`/messages/${conversationId}`, {
+        method: "POST",
+        body: JSON.stringify({ content: msg.content, clientQueuedId: msg.queuedId }),
+      });
+      if (onStatus) onStatus(msg.queuedId, "delivered");
+      dequeueQueuedMessage(msg.queuedId);
+    } catch (e) {
+      if (onStatus) onStatus(msg.queuedId, "pending");
+    }
+  }
+};
 const getUser = () => JSON.parse(localStorage.getItem("servicehubUser") || "null");
 
 const setSession = (token, user) => {
@@ -474,11 +617,21 @@ const renderMessages = (messages, currentUserId) => {
   thread.innerHTML = messages
     .map((message) => {
       const isMine = message.sender.id === currentUserId;
+      const status = message.status || "sent";
+      const ticks = status === "sent" ? "✔" : status === "delivered" ? "✔✔" : "✔✔";
+      const color = status === "seen" ? "#146c5f" : "inherit";
       return `
         <div class="message-bubble ${isMine ? "mine" : ""}">
           <strong>${escapeHtml(message.sender.name)}</strong>
           <p>${escapeHtml(message.content)}</p>
           <time>${new Date(message.createdAt).toLocaleString()}</time>
+          ${
+            isMine
+              ? `<p class="notice" style="margin:8px 0 0;">
+                   <span style="color:${color};">${ticks}</span>
+                 </p>`
+              : ""
+          }
         </div>
       `;
     })
@@ -569,6 +722,141 @@ const handleMessagesPage = () => {
     loadConversations();
   }
 
+  // Socket.io realtime (WhatsApp-style)
+  let socket = null;
+  const typingIndicatorId = "typingIndicator";
+  const ensureTypingIndicator = () => {
+    if (document.getElementById(typingIndicatorId)) return;
+    const thread = document.getElementById("messageThread");
+    if (!thread) return;
+
+    const el = document.createElement("div");
+    el.id = typingIndicatorId;
+    el.className = "notice";
+    el.style.marginBottom = "12px";
+    el.style.display = "none";
+    el.textContent = "Typing…";
+    thread.prepend(el);
+  };
+
+  ensureTypingIndicator();
+
+  const connectSocket = () => {
+    if (!conversationId) return;
+    if (typeof io === "undefined") return;
+
+    // JWT from localStorage
+    const token = getToken();
+    if (!token) return;
+
+    socket = io({
+      auth: { token },
+      transports: ["websocket"],
+    });
+
+    socket.on("connect", () => {
+      socket.emit("joinConversation", { conversationId });
+    });
+
+    socket.on("typing:other", ({ conversationId: cid, typing }) => {
+      if (!cid || String(cid) !== String(conversationId)) return;
+      const el = document.getElementById(typingIndicatorId);
+      if (!el) return;
+      el.style.display = typing ? "block" : "none";
+      el.textContent = typing ? "User is typing…" : "";
+    });
+
+    socket.on("message:new", (messagePayload) => {
+      if (!messagePayload || messagePayload.conversationId !== conversationId) return;
+
+      // Remove offline queued bubbles if they exist for same content is hard; we keep them.
+      // Render the new message bubble.
+      const thread = document.getElementById("messageThread");
+      if (!thread) return;
+
+      const wrap = document.createElement("div");
+      wrap.innerHTML = `
+        <div class="message-bubble ${messagePayload.sender?.id === getUser()?.id ? "mine" : ""}" data-message-id="${messagePayload.id}">
+          <strong>${escapeHtml(messagePayload.sender?.name || "Unknown")}</strong>
+          <p>${escapeHtml(messagePayload.content || "")}</p>
+          <time>${new Date(messagePayload.createdAt || Date.now()).toLocaleString()}</time>
+          <p class="notice" style="margin:8px 0 0;">
+            <span style="color:${messagePayload.status === "seen" ? "#146c5f" : "inherit"};">
+              ${messagePayload.status === "sent" ? "✔" : messagePayload.status === "delivered" ? "✔✔" : "✔✔"}
+            </span>
+          </p>
+        </div>
+      `;
+      thread.appendChild(wrap.firstElementChild);
+
+      scrollToBottom(thread);
+    });
+
+    socket.on("message:status", ({ conversationId: cid, messageId, status, seenAt }) => {
+      if (!cid || String(cid) !== String(conversationId)) return;
+      const bubble = document.querySelector(`[data-message-id="${messageId}"]`);
+      if (!bubble) return;
+
+      const statusSpan = bubble.querySelector(".notice span");
+      if (statusSpan) statusSpan.textContent = status || "sent";
+    });
+
+    // Mark seen when chat is open (after initial render)
+    setTimeout(() => {
+      // We'll mark seen only for messages already loaded; later we can do a smarter range query.
+      const msgBubbles = document.querySelectorAll("[data-message-id]");
+      msgBubbles.forEach((b) => {
+        const id = b.getAttribute("data-message-id");
+        if (id) socket.emit("messageSeen", { conversationId, messageId: Number(id) });
+      });
+    }, 800);
+  };
+
+  connectSocket();
+
+  const upsertMessageStatus = (queuedId, status) => {
+    // Best-effort UI: if we re-render later, statuses will refresh from server.
+    // For offline, we show queued "pending" line items below.
+    const el = document.querySelector(`[data-queued-id="${queuedId}"]`);
+    if (el) el.textContent = status;
+  };
+
+  const renderQueuedBubbles = (conversationIdToRender) => {
+    if (!conversationIdToRender) return;
+    const queue = loadMessageQueue();
+    const queued = queue.filter((m) => m.conversationId === conversationIdToRender);
+    if (!queued.length) return;
+
+    const thread = document.getElementById("messageThread");
+    if (!thread) return;
+
+    const existingQueued = thread.querySelector(".queued-pending");
+    if (!existingQueued) {
+      const wrap = document.createElement("div");
+      wrap.className = "queued-pending";
+      wrap.style.display = "grid";
+      wrap.style.gap = "12px";
+      wrap.style.marginBottom = "12px";
+      thread.prepend(wrap);
+    }
+
+    const container = thread.querySelector(".queued-pending");
+    if (!container) return;
+
+    container.innerHTML = queued
+      .map(
+        (m) => `
+          <div class="message-bubble mine" data-queued-id="${m.queuedId}">
+            <strong>${escapeHtml(getUser()?.name || "You")}</strong>
+            <p>${escapeHtml(m.content)}</p>
+            <time>Pending • ${new Date(m.createdAt).toLocaleString()}</time>
+            <p class="notice" style="margin:8px 0 0;">Status: <span>${m.status || "pending"}</span></p>
+          </div>
+        `
+      )
+      .join("");
+  };
+
   const sendMessage = async () => {
     const content = textarea.value.trim();
     if (!content) {
@@ -580,6 +868,61 @@ const handleMessagesPage = () => {
     setButtonLoading(button, true, "Sending...");
     showMessage("messagePageNotice", "", false);
 
+    // Offline: queue + mark pending
+    if (conversationId && !navigator.onLine) {
+      const queuedId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      enqueueQueuedMessage({
+        queuedId,
+        conversationId,
+        content,
+        createdAt: new Date().toISOString(),
+        status: "pending",
+      });
+
+      textarea.value = "";
+      renderQueuedBubbles(conversationId);
+      showMessage("messagePageNotice", "You’re offline. Message queued (pending).");
+      setButtonLoading(button, false);
+      return;
+    }
+
+    // Prefer realtime via Socket.io when possible.
+    if (conversationId && socket && socket.connected) {
+      try {
+        const result = await new Promise((resolve) => {
+          socket.emit("sendMessage", { conversationId, content }, (ack) => resolve(ack));
+        });
+
+        if (result && result.ok) {
+          textarea.value = "";
+          // UI will update via message:new event.
+          showMessage("messagePageNotice", "Message sent.");
+        } else {
+          // Fall back to REST if ack failed.
+          await apiRequest(`/messages/${conversationId}`, {
+            method: "POST",
+            body: JSON.stringify({ content }),
+          });
+          textarea.value = "";
+          await loadMessages(conversationId);
+        }
+      } catch (error) {
+        try {
+          await apiRequest(`/messages/${conversationId}`, {
+            method: "POST",
+            body: JSON.stringify({ content }),
+          });
+          textarea.value = "";
+          await loadMessages(conversationId);
+        } catch (fallbackErr) {
+          showMessage("messagePageNotice", fallbackErr.message || "Failed to send message.", true);
+        }
+      } finally {
+        setButtonLoading(button, false);
+      }
+      return;
+    }
+
     try {
       if (conversationId) {
         await apiRequest(`/messages/${conversationId}`, {
@@ -589,6 +932,13 @@ const handleMessagesPage = () => {
         textarea.value = "";
         await loadMessages(conversationId);
       } else if (serviceId) {
+        // If we don't have a conversationId yet, we can only start conversation online.
+        // Offline: queue not supported for "start" (needs conversationId from server).
+        if (!navigator.onLine) {
+          showMessage("messagePageNotice", "Go online first to start a conversation.", true);
+          return;
+        }
+
         const result = await apiRequest("/messages/start", {
           method: "POST",
           body: JSON.stringify({ serviceId: Number(serviceId), content }),
@@ -604,16 +954,80 @@ const handleMessagesPage = () => {
     }
   };
 
+  // When online again, flush queued messages for the current conversation.
+  if (conversationId) {
+    const flush = async () => {
+      renderQueuedBubbles(conversationId);
+      await flushQueuedMessages(conversationId, (queuedId, status) => {
+        upsertMessageStatus(queuedId, status);
+        const q = loadMessageQueue();
+        const pending = q.filter((m) => m.conversationId === conversationId && m.queuedId === queuedId);
+        if (status === "sending") showMessage("messagePageNotice", "Sending pending messages…");
+        if (status === "delivered") showMessage("messagePageNotice", "Pending messages delivered.");
+        if (status === "pending") showMessage("messagePageNotice", "Some messages are still pending.", true);
+      });
+      // Refresh thread after flush so the UI shows real server delivery.
+      await loadMessages(conversationId);
+    };
+
+    if (navigator.onLine) {
+      flush();
+    } else {
+      showMessage("messagePageNotice", "You’re offline. Messages will be queued.", false);
+      renderQueuedBubbles(conversationId);
+    }
+
+    window.addEventListener(
+      "online",
+      () => {
+        flush();
+      },
+      { once: false }
+    );
+  }
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     await sendMessage();
   });
 
+  let typingTimeoutId = null;
+  const typingStart = () => {
+    if (!conversationId || !socket || !socket.connected) return;
+    socket.emit("typing:start", { conversationId });
+  };
+
+  const typingStop = () => {
+    if (!conversationId || !socket || !socket.connected) return;
+    socket.emit("typing:stop", { conversationId });
+  };
+
+  const scheduleTypingStop = () => {
+    if (typingTimeoutId) clearTimeout(typingTimeoutId);
+    typingTimeoutId = setTimeout(() => {
+      typingStop();
+    }, 1000);
+  };
+
+  textarea.addEventListener("input", () => {
+    typingStart();
+    scheduleTypingStop();
+  });
+
   textarea.addEventListener("keydown", async (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
+      typingStop();
       await sendMessage();
+      return;
     }
+    // Other keys imply typing.
+    typingStart();
+    scheduleTypingStop();
+  });
+
+  textarea.addEventListener("blur", () => {
+    typingStop();
   });
 };
 
@@ -691,6 +1105,9 @@ const handleDashboardActions = () => {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
+  applyAppShellUX();
+  registerServiceWorker().then(() => subscribeToPush());
+
   updateNav();
   updateHomepageCta();
   bindLogout();

@@ -16,6 +16,7 @@ model User {
   buyingConversations     Conversation[] @relation("BuyerConversations")
   providingConversations  Conversation[] @relation("ProviderConversations")
   messages                Message[]
+  pushSubscriptions       PushSubscription[]
   createdAt               DateTime       @default(now())
   updatedAt               DateTime       @updatedAt
 }
@@ -50,12 +51,39 @@ model Conversation {
   @@unique([serviceId, buyerId, providerId])
 }
 
+enum MessageStatus {
+  sent
+  delivered
+  seen
+}
+
 model Message {
-  id             Int          @id @default(autoincrement())
+  id             Int            @id @default(autoincrement())
   conversationId Int
   senderId       Int
   content        String
+  status         MessageStatus @default(sent)
+  seenAt         DateTime?
+
+  // attachments (future-proof for voice/images/files; Socket.io will send messages + attachment metadata)
+  attachmentUrl   String?
+  attachmentType  String?
+
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
   createdAt      DateTime     @default(now())
+}
+
+model PushSubscription {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  endpoint    String  @unique
+  p256dh      String
+  auth        String
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
 }

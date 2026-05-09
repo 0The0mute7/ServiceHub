@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Offline | ServiceHub</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="index.html" title="ServiceHub">📱</a>
+      <nav class="nav">
+        <a href="services.html" title="Services">🔍</a>
+        <a href="create-service.html" data-auth-only hidden title="Create">➕</a>
+        <a href="dashboard.html" data-auth-only hidden title="Dashboard">📊</a>
+        <a href="profile.html" data-auth-only hidden title="Profile">👤</a>
+      </nav>
+      <div style="flex: 1;"></div>
+      <a href="login.html" data-guest-only hidden title="Login">🔐</a>
+      <a href="register.html" data-guest-only hidden title="Register">✏️</a>
+      <button type="button" data-auth-only data-logout hidden title="Logout">🚪</button>
+    </aside>
+
+    <main class="page">
+      <h1 class="page-title">You’re offline</h1>
+      <p class="lead" style="margin-top: 10px;">
+        ServiceHub is still available. Some actions may require internet.
+      </p>
+      <div class="form-shell" style="margin-top: 22px;">
+        <p class="notice" id="offlineMessage">Offline mode enabled ✅</p>
+        <a class="button" href="index.html" style="margin-top: 14px; width: fit-content;">Go to Home</a>
+      </div>
+    </main>
+  </body>
+</html>

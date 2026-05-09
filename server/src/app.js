@@ -5,6 +5,7 @@ require("dotenv").config();
 const authRoutes = require("./routes/auth.routes");
 const serviceRoutes = require("./routes/service.routes");
 const messageRoutes = require("./routes/message.routes");
+const pushRoutes = require("./routes/push.routes");
 const { notFound, errorHandler } = require("./middleware/error.middleware");
 const { sendSuccess } = require("./utils/responses");
 
@@ -20,6 +21,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/push", pushRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
