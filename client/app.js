@@ -1,6 +1,5 @@
-const API_BASE = "https://servicehub-qkrk.onrender.com/api";
+const API_BASE = window.APP_CONFIG.API_BASE;
 
-// IMPORTANT: set this to your real base64 VAPID public key (URL-safe)
 const VAPID_PUBLIC_KEY = "BEgkNeMmBOoqGPyA933kZSFYXtnt0IAsIZ5xFUsSZdtmkTTZWhDhbczT5ph_3fqrmhyk15vEY6N_97XopAbJqxw";
 
 const urlBase64ToUint8Array = (base64String) => {

@@ -11,7 +11,17 @@ const { sendSuccess } = require("./utils/responses");
 
 const app = express();
 
-app.use(cors());
+const corsOptions = {
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    process.env.FRONTEND_URL || "https://servicehub-vercel.vercel.app",
+  ],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.get("/", (req, res) => {
